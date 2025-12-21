@@ -23,8 +23,8 @@ async function bootstrap() {
   await app.startAllMicroservices();
   console.log('AUTH microservice (TCP) listening on port 5001');
 
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || 7001;
   await app.listen(port);
-//   console.log(`Server listening on http://localhost:${port}/api`);
+  console.log(`Server listening on http://localhost:${port}/api`);
 }
 bootstrap();

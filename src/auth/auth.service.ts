@@ -17,7 +17,11 @@ export class AuthService {
     const user = await this.usersService.create(email, password, name);
     console.log(user);
     const tokens = await this.getTokens(user.user_id, user.email);
-    await this.saveRefreshToken(user.user_id, tokens.refreshToken);
+    await this.saveTokens(
+      user.user_id,
+      tokens.refreshToken,
+      tokens.accessToken,
+    );
     return { user, tokens };
   }
 
@@ -27,7 +31,13 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const tokens = await this.getTokens(user.user_id, user.email);
-    await this.saveRefreshToken(user.user_id, tokens.refreshToken);
+
+    console.log('Generated Tokens:', tokens);
+    await this.saveTokens(
+      user.user_id,
+      tokens.refreshToken,
+      tokens.accessToken,
+    );
 
     return { user, tokens };
   }
@@ -35,14 +45,14 @@ export class AuthService {
   async logout(userId: string, refreshToken: string) {
     // const tokenHash = await this.hashToken(refreshToken);
     await this.db.query(
-      'DELETE FROM refresh_tokens WHERE user_id=? AND token_hash=?',
+      'DELETE FROM tokens WHERE user_id=? AND refresh_token=?',
       [userId, refreshToken],
     );
   }
 
   async refreshTokens(userId: string, refreshToken: string) {
     const [rows] = await this.db.query(
-      'SELECT token_hash FROM refresh_tokens WHERE user_id=?',
+      'SELECT refresh_token FROM tokens WHERE user_id=?',
       [userId],
     );
 
@@ -50,17 +60,17 @@ export class AuthService {
       throw new UnauthorizedException('No refresh token found');
 
     for (const r of rows as any[]) {
-      const match = await bcrypt.compare(refreshToken, r.token_hash);
+      const match = await bcrypt.compare(refreshToken, r.refresh_token);
       if (match) {
         // Remove old token (rotation)
         await this.db.query(
-          'DELETE FROM refresh_tokens WHERE user_id=? AND token_hash=?',
-          [userId, r.token_hash],
+          'DELETE FROM tokens WHERE user_id=? AND refresh_token=?',
+          [userId, r.refresh_token],
         );
 
         const user = await this.usersService.findById(userId);
         const tokens = await this.getTokens(userId, user.email);
-        await this.saveRefreshToken(userId, tokens.refreshToken);
+        await this.saveTokens(userId, tokens.refreshToken);
         return tokens;
       }
     }
@@ -68,20 +78,34 @@ export class AuthService {
     throw new UnauthorizedException('Invalid refresh token');
   }
 
-  private async saveRefreshToken(userId: string, refreshToken: string) {
+  async saveTokens(
+    userId: string,
+    refreshToken: string,
+    accessToken?: string,
+  ) {
     // const hashed = await this.hashToken(refreshToken);
+
+    console.log('Saving tokens to DB:', { userId, refreshToken, accessToken });
+
     await this.db.query(
-      'INSERT INTO refresh_tokens (user_id, token_hash) VALUES (?, ?)',
-      [userId, refreshToken],
+      'INSERT INTO tokens (user_id, refresh_token, access_token) VALUES (?, ?, ?)',
+      [userId, refreshToken, accessToken || null],
     );
   }
 
-  private async hashToken(token: string) {
-    return bcrypt.hash(token, 12);
-  }
-
-  private async getTokens(userId: string, email: string) {
+  async getTokens(userId: string, email: string) {
     const payload = { sub: userId, email };
+
+    let isUserLoggedin: any = await this.db.query(
+      'SELECT * FROM tokens WHERE user_id=?',
+      [userId],
+    );
+
+    // SINGLE SESSION LOGGED IN
+    if (isUserLoggedin[0].length > 0) {
+      await this.db.query('DELETE FROM tokens WHERE user_id=?', [userId]);
+    }
+
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: process.env.JWT_ACCESS_TOKEN_SECRET,
       expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION ?? '15m',
@@ -90,13 +114,15 @@ export class AuthService {
       secret: process.env.JWT_REFRESH_TOKEN_SECRET,
       expiresIn: process.env.JWT_REFRESH_TOKEN_EXPIRATION ?? '7d',
     });
+
     return { accessToken, refreshToken };
   }
 
   async verifyToken(token: string) {
+    console.log(token)
     try {
       const isTokenPresent: any = await this.db.query(
-        'SELECT token_hash FROM refresh_tokens WHERE token_hash=?',
+        'SELECT * FROM tokens WHERE access_token=?',
         [token],
       );
 
