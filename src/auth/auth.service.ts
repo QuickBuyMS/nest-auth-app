@@ -1,9 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { Inject } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { Pool } from 'mysql2/promise';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+  UnauthorizedException,
+  HttpStatus,
+} from '@nestjs/common';
 
 @Injectable()
 export class AuthService {
@@ -14,40 +20,100 @@ export class AuthService {
   ) {}
 
   async signup(email: string, password: string, name: string) {
-    const user = await this.usersService.create(email, password, name);
-    console.log(user);
-    const tokens = await this.getTokens(user.user_id, user.email);
-    await this.saveTokens(
-      user.user_id,
-      tokens.refreshToken,
-      tokens.accessToken,
-    );
-    return { user, tokens };
+    try {
+      const user = await this.usersService.create(email, password, name);
+
+      const tokens = await this.getTokens(user.user_id, user.email);
+
+      await this.saveTokens(
+        user.user_id,
+        tokens.refreshToken,
+        tokens.accessToken,
+      );
+
+      return {
+        statusCode: HttpStatus.CREATED,
+        message: 'Signup successful',
+        user,
+        tokens,
+      };
+    } catch (error) {
+      // throw new InternalServerErrorException({
+      //   statusCode: error?.status,
+      //   message: error?.message,
+      //   error: error
+      // });
+      throw error;
+    }
   }
 
   async login(email: string, password: string) {
-    const user = await this.usersService.validatePassword(email, password);
-    console.log('Validated User:', user);
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    try {
+      const user = await this.usersService.validatePassword(email, password);
 
-    const tokens = await this.getTokens(user.user_id, user.email);
+      if (!user) {
+        throw new UnauthorizedException({
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Invalid email or password',
+        });
+      }
 
-    console.log('Generated Tokens:', tokens);
-    await this.saveTokens(
-      user.user_id,
-      tokens.refreshToken,
-      tokens.accessToken,
-    );
+      const tokens = await this.getTokens(user.user_id, user.email);
 
-    return { user, tokens };
+      await this.saveTokens(
+        user.user_id,
+        tokens.refreshToken,
+        tokens.accessToken,
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Login successful',
+        data: {
+          user,
+          tokens,
+        },
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to login',
+      });
+    }
   }
 
   async logout(userId: string, refreshToken: string) {
-    // const tokenHash = await this.hashToken(refreshToken);
-    await this.db.query(
-      'DELETE FROM tokens WHERE user_id=? AND refresh_token=?',
-      [userId, refreshToken],
-    );
+    try {
+      const result = await this.db.query(
+        'DELETE FROM tokens WHERE user_id=? AND refresh_token=?',
+        [userId, refreshToken],
+      );
+
+      // if (result.affectedRows === 0) {
+      //   throw new BadRequestException({
+      //     statusCode: HttpStatus.BAD_REQUEST,
+      //     message: 'Invalid refresh token',
+      //   });
+      // }
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Logout successful',
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'Failed to logout',
+      });
+    }
   }
 
   async refreshTokens(userId: string, refreshToken: string) {
@@ -78,11 +144,7 @@ export class AuthService {
     throw new UnauthorizedException('Invalid refresh token');
   }
 
-  async saveTokens(
-    userId: string,
-    refreshToken: string,
-    accessToken?: string,
-  ) {
+  async saveTokens(userId: string, refreshToken: string, accessToken?: string) {
     // const hashed = await this.hashToken(refreshToken);
 
     console.log('Saving tokens to DB:', { userId, refreshToken, accessToken });
@@ -118,8 +180,18 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  async getMyProfile(userId: string) {
+    const user = await this.usersService.findById(userId);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Profile fetched successfully',
+      data: user,
+    };
+  }
+
   async verifyToken(token: string) {
-    console.log(token)
+    console.log(token);
     try {
       const isTokenPresent: any = await this.db.query(
         'SELECT * FROM tokens WHERE access_token=?',

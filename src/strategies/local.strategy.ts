@@ -16,6 +16,6 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid credentials');
     }
     // Return user object to be attached to request
-    return user.user;
+    return user.data.user;
   }
 }

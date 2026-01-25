@@ -17,8 +17,9 @@ export class UsersService {
     const hashed = await bcrypt.hash(password, 12);
     const user = await this.usersRepo.createUser(email, hashed, name);
     const createdUser = await this.usersRepo.findByEmail(email);
-    if (!createdUser) throw new NotFoundException('User not found after creation');
-    delete createdUser.password_hash;  
+    if (!createdUser)
+      throw new NotFoundException('User not found after creation');
+    delete createdUser.password_hash;
     console.log('Created User:', createdUser);
     return createdUser;
   }

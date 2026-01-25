@@ -54,15 +54,15 @@ export class AuthController {
 
   // ---------------- Protected Route Example ----------------
   @UseGuards(JwtAuthGuard)
-  @Get('me')
+  @Get('myprofile')
   getProfile(@CurrentUser() user: any) {
-    console.log('hit');
-    return user;
+    console.log('hit', user)
+    return this.authService.getMyProfile(user.userId);
   }
 
   @MessagePattern({ cmd: 'verify_token' })
   async verifyToken(@Payload() data: any) {
-    console.log('Token length:', data.token.length);
+    // console.log('Token length:', data.token.length);
     return this.authService.verifyToken(data.token);
   }
 }

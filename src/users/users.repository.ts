@@ -27,7 +27,7 @@ export class UsersRepository {
 
   async findById(id: string) {
     const [rows] = await this.db.query(
-      'SELECT user_id, email, password_hash, created_at FROM users WHERE user_id=?',
+      'SELECT user_id, email, password_hash, name, phone, role, points, created_at, updated_at FROM users WHERE user_id=?',
       [id],
     );
     return (rows as UserRow[])[0] as UserRow | undefined;
