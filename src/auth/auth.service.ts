@@ -34,8 +34,10 @@ export class AuthService {
       return {
         statusCode: HttpStatus.CREATED,
         message: 'Signup successful',
-        user,
-        tokens,
+        data: {
+          user,
+          tokens,
+        },
       };
     } catch (error) {
       // throw new InternalServerErrorException({

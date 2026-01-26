@@ -12,8 +12,8 @@ export class UsersRepository {
   constructor(@Inject('DATABASE_CONNECTION') private readonly db: Pool) {}
 
   async createUser(email: string, hashedPassword: string, name: string) {
-    const sql = 'INSERT INTO users (email, password_hash, name) VALUES (?,?,?)';
-    const [rows] = await this.db.query(sql, [email, hashedPassword, name]);
+    const sql = 'INSERT INTO users (email, password_hash, name, points) VALUES (?,?,?,?)';
+    const [rows] = await this.db.query(sql, [email, hashedPassword, name, 10000]);
     return (rows as any[])[0] as Partial<UserRow>;
   }
 
