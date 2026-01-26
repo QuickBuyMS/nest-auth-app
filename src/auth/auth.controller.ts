@@ -39,8 +39,7 @@ export class AuthController {
     @CurrentUser() user: any,
     @Body('refreshToken') refreshToken: string,
   ) {
-    await this.authService.logout(user.userId, refreshToken);
-    return { ok: true };
+    return this.authService.logout(user.userId, refreshToken);
   }
 
   // ---------------- Refresh Tokens ----------------
@@ -56,7 +55,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('myprofile')
   getProfile(@CurrentUser() user: any) {
-    console.log('hit', user)
+    console.log('hit', user);
     return this.authService.getMyProfile(user.userId);
   }
 
