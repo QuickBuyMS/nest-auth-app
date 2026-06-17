@@ -2,7 +2,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { Inject } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { Pool } from 'mysql2/promise';
+import { Pool, ResultSetHeader } from 'mysql2/promise';
 import {
   Injectable,
   BadRequestException,
@@ -17,7 +17,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     @Inject('DATABASE_CONNECTION') private readonly db: Pool,
-  ) {}
+  ) { }
 
   async signup(email: string, password: string, name: string) {
     try {
@@ -90,17 +90,20 @@ export class AuthService {
 
   async logout(userId: string, refreshToken: string) {
     try {
+      console.log('logout user', userId, refreshToken);
       const result = await this.db.query(
         'DELETE FROM tokens WHERE user_id=? AND refresh_token=?',
         [userId, refreshToken],
       );
 
-      // if (result.affectedRows === 0) {
-      //   throw new BadRequestException({
-      //     statusCode: HttpStatus.BAD_REQUEST,
-      //     message: 'Invalid refresh token',
-      //   });
-      // }
+      console.log(result)
+
+      if ((result[0] as ResultSetHeader).affectedRows === 0) {
+        throw new BadRequestException({
+          statusCode: HttpStatus.BAD_REQUEST,
+          message: 'Invalid refresh token',
+        });
+      }
 
       return {
         statusCode: HttpStatus.OK,
@@ -158,7 +161,7 @@ export class AuthService {
   }
 
   async getTokens(userId: string, email: string) {
-    const payload = { sub: userId, email };
+    const payload = { userId: userId, email };
 
     let isUserLoggedin: any = await this.db.query(
       'SELECT * FROM tokens WHERE user_id=?',

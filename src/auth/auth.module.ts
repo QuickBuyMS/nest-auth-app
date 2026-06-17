@@ -6,15 +6,15 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { LocalStrategy } from '../strategies/local.strategy';
 import { JwtStrategy } from '../strategies/jwt.strategy';
-
+import { RefreshTokenStrategy } from '../strategies/refresh-token.strategy';
 
 @Module({
-imports: [
-UsersModule,
-PassportModule,
-JwtModule.register({}), // configuration in service
-],
-providers: [AuthService, LocalStrategy, JwtStrategy],
-controllers: [AuthController],
+  imports: [
+    UsersModule,
+    PassportModule,
+    JwtModule.register({}), // configuration in service
+  ],
+  providers: [AuthService, LocalStrategy, JwtStrategy, RefreshTokenStrategy],
+  controllers: [AuthController],
 })
-export class AuthModule {}
+export class AuthModule { }
