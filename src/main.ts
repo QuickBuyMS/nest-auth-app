@@ -2,7 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
 import { AppModule } from './app.module';
-import { Transport } from '@nestjs/microservices';
+import { getMicroserviceConfig, getTransportType } from './config/messaging.config';
 import * as cookieParser from 'cookie-parser';
 
 dotenv.config();
@@ -20,18 +20,17 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.connectMicroservice({
-    transport: Transport.TCP,
-    options: {
-      port: 5001, // matches producer client settings
-    },
-  });
+  // Feature-flagged transport: TCP or RMQ
+  const microserviceConfig = getMicroserviceConfig();
+  app.connectMicroservice(microserviceConfig);
 
   await app.startAllMicroservices();
-  console.log('AUTH microservice (TCP) listening on port 5001');
+  const transportType = getTransportType();
+  console.log(`AUTH microservice (${transportType}) started`);
 
   const port = process.env.PORT || 7001;
   await app.listen(port);
   console.log(`Server listening on http://localhost:${port}/api`);
 }
 bootstrap();
+

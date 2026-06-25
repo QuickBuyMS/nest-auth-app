@@ -4,7 +4,8 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './db/database.module';
 // import { PostgresProviderModule } from './db/postgres.provider';
-import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ClientsModule } from '@nestjs/microservices';
+import { getClientModuleConfig } from './config/messaging.config';
 
 
 @Module({
@@ -14,13 +15,8 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     // PostgresProviderModule,
     UsersModule,
     AuthModule,
-    ClientsModule.register([
-      {
-        name: 'AUTH_MICROSERVICE',
-        transport: Transport.TCP,
-        options: { port: 5001 }, // microservice listens here
-      },
-    ]),
+    ClientsModule.register([getClientModuleConfig() as any]),
   ],
 })
-export class AppModule {}
+export class AppModule { }
+
